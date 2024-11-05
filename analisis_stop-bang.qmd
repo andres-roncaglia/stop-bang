@@ -1,0 +1,233 @@
+---
+format: 
+  pdf:
+    fig-pos: "H"
+    tbl-pos: "H"
+lang: es
+echo: FALSE
+message: FALSE
+warning: FALSE
+fig-cap-location: top
+geometry: 
+- top= 25mm
+- left= 20mm
+- right = 20mm
+- bottom = 25mm
+---
+
+
+::: {.center data-latex=""}
+
+\vspace{3cm}
+
+```{r logo facultad, echo=F, include = T, out.width= "60%"}
+knitr::include_graphics("Imgs/logounr.png")
+```
+
+\pagenumbering{gobble}
+
+\vspace{5cm}
+
+\Large
+**LICENCIATURA EN ESTADÍSTICA**
+
+\vspace{1cm}
+
+\Large
+**Sedación en pacientes STOP-BANG positivos**
+
+
+\vspace{0.3cm}
+\large
+
+*Análisis de datos longitudinales*
+
+\vspace{9cm}
+
+\large
+
+**Autores: Franco Santini - Alejo Vaschetti - Andrés Roncaglia**
+
+**Docentes: Cecilia Rapelli - Noelia Castellana - Luciana Magnano**
+
+**2024**
+\normalsize
+\newpage
+\hypersetup{linkcolor = black}
+\tableofcontents
+
+
+\newpage
+\pagenumbering{arabic}
+
+:::
+
+\newpage
+
+```{r}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(GGally)
+library(joineR)
+library(nlme)
+library(patchwork)
+
+
+theme_set(theme_bw() + 
+            theme(plot.title = element_text(hjust = 0.5),
+                  legend.position = "bottom"))
+
+knitr::opts_chunk$set(fig.align = "center")
+```
+
+```{r}
+# Paleta: https://coolors.co/c1f7dc-c3d2d5-bda0bc-5c4742-3a2e39
+c("#c1f7dc", "#c3d2d5", "#bda0bc", "#5c4742", "#3a2e39", "#4F518C", "#4A6C6F", "#201E1F", "#EB9486", "#C97B84", "#41658A", "#414073")
+
+datos <- read_excel("Datos/bis.xlsx") |> 
+  mutate(grupo = factor(ifelse(grupo == 1, "MDZ", "DEX")),
+         ind_mc = peso/(talla/100)^2)
+
+datos_largo <- datos |> 
+  pivot_longer(values_to = "bis", names_to = "Minuto", cols = c("bis0", "bis15", "bis30", "bis45", "bis60")) |> 
+  mutate(Minuto = as.numeric(str_remove(Minuto, "bis")))
+
+datos_largo |> 
+  group_by(grupo) |> 
+  summarise(n = n())
+
+```
+
+
+```{r}
+ggplot(datos_largo, aes(x=Minuto, y = bis, group=id, color = factor(grupo))) +
+  geom_point(size = 1) +
+  geom_line() +
+  facet_wrap(~grupo)
+```
+
+
+
+```{r}
+ggplot(datos_largo, aes(x=Minuto, y = bis,  color=factor(grupo), group = factor(grupo))  ) +
+  geom_point(stat='summary', fun.y='mean') +
+  geom_line(stat='summary', fun.y='mean', size = 1)
+```
+
+Relacion cuadratica
+
+
+```{r}
+ggplot(datos_largo, aes(x=Minuto, y = bis, group = factor(Minuto))  ) +
+  geom_boxplot(fill = 'steelblue') + facet_wrap(~ grupo)
+  
+```
+
+
+```{r}
+datos_mdz = filter(datos, grupo == "MDZ")
+datos_dex = filter(datos, grupo == "DEX")
+
+
+round(cor(datos_mdz[,5:9], use = "pairwise.complete.obs"), 2)
+round(cor(datos_dex[,5:9], use = "pairwise.complete.obs"), 2)
+
+round(cov(datos_mdz[,5:9], use = "pairwise.complete.obs"), 2)
+round(cov(datos_dex[,5:9], use = "pairwise.complete.obs"), 2)
+
+
+```
+
+Variancias distintas en el tiempo y entre grupos o solo en el tiempo
+Correlacion ni idea
+
+```{r}
+datos_dex_est <- datos_dex |> 
+  mutate(bis0 = scale(bis0) ,
+         bis15 = scale(bis15), 
+         bis30 = scale(bis30), 
+         bis45 = scale(bis45), 
+         bis60 = scale(bis60))
+
+datos_mdz_est <- datos_mdz |> 
+  mutate(bis0 = scale(bis0) ,
+         bis15 = scale(bis15), 
+         bis30 = scale(bis30), 
+         bis45 = scale(bis45), 
+         bis60 = scale(bis60))
+
+
+
+### Sexo: Masculino
+datos_mdz_est.lag1 <- cor(c(datos_mdz_est$bis0, datos_mdz_est$bis15, datos_mdz_est$bis30, datos_mdz_est$bis45), 
+                c(datos_mdz_est$bis15, datos_mdz_est$bis30, datos_mdz_est$bis45, datos_mdz_est$bis60), 
+                use = 'na.or.complete')
+datos_mdz_est.lag2 <- cor(c(datos_mdz_est$bis0, datos_mdz_est$bis15, datos_mdz_est$bis30), 
+                c(datos_mdz_est$bis30, datos_mdz_est$bis45, datos_mdz_est$bis60),
+                use = 'na.or.complete')
+datos_mdz_est.lag3 <- cor(c(datos_mdz_est$bis0, datos_mdz_est$bis15), 
+                c(datos_mdz_est$bis45, datos_mdz_est$bis60), 
+                use = 'na.or.complete')
+datos_mdz_est.lag4 <- cor(c(datos_mdz_est$bis0), 
+                c(datos_mdz_est$bis60), 
+                use = 'na.or.complete')
+
+ac_mdz <- data.frame(rezago = seq(0, 4, 1), 
+                           ac = c(1, datos_mdz_est.lag1, datos_mdz_est.lag2, datos_mdz_est.lag3, datos_mdz_est.lag4), grupo = 'MDZ')
+
+### Sexo: Femenino
+datos_dex_est.lag1 <- cor(c(datos_dex_est$bis0, datos_dex_est$bis15, datos_dex_est$bis30, datos_dex_est$bis45), 
+                c(datos_dex_est$bis15, datos_dex_est$bis30, datos_dex_est$bis45, datos_dex_est$bis60), 
+                use = 'na.or.complete')
+datos_dex_est.lag2 <- cor(c(datos_dex_est$bis0, datos_dex_est$bis15, datos_dex_est$bis30), 
+                c(datos_dex_est$bis30, datos_dex_est$bis45, datos_dex_est$bis60),
+                use = 'na.or.complete')
+datos_dex_est.lag3 <- cor(c(datos_dex_est$bis0, datos_dex_est$bis15), 
+                c(datos_dex_est$bis45, datos_dex_est$bis60), 
+                use = 'na.or.complete')
+datos_dex_est.lag4 <- cor(c(datos_dex_est$bis0), 
+                c(datos_dex_est$bis60), 
+                use = 'na.or.complete')
+
+ac_dex <- data.frame(rezago = seq(0, 4, 1), 
+                           ac = c(1, datos_dex_est.lag1, datos_dex_est.lag2, datos_dex_est.lag3, datos_dex_est.lag4), grupo = 'DEX')
+
+
+
+correlog <- rbind(ac_mdz, ac_dex)
+
+ggplot(correlog, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
+  geom_point(size = 2) +
+  geom_line(size = 1)
+  
+```
+
+```{r}
+datos_largo_est <- datos_largo |> 
+  group_by(Minuto, grupo) |> 
+  mutate(bis = scale(bis)) |> 
+  ungroup()
+
+vgm <- variogram(datos_largo_est$id, datos_largo_est$Minuto, datos_largo_est$bis)
+vgm1 = data.frame(vgm$svar)
+
+
+ggplot(data = vgm1, aes(x = vt, y = vv)) +
+  geom_point(color = 'grey50', na.rm = TRUE) +
+  stat_summary(fun = mean, geom = 'line', color = 'orangered', size = 1, na.rm = TRUE) + 
+  geom_hline(yintercept = vgm$sigma2) +
+  scale_x_continuous("Rezago") +
+  scale_y_continuous("Variograma muestral")
+
+
+```
+
+Modelo maximal para la media
+
+$$
+Y_{ij} = \left \{ \begin{matrix} \beta_{0} + \beta_{1M} \cdot t_{ij} + \beta_{2M} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot t_{ij}^2 + \beta_{4M} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ \beta_{0} + \beta_{1D}\cdot t_{ij} + \beta_{2D} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot t_{ij}^2 + \beta_{4D} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij} \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
+$$
+Con $\epsilon_{ij} \sim \mathcal{N}(1,\Sigma)$
