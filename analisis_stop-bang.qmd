@@ -4,7 +4,6 @@ format:
     fig-pos: "H"
     tbl-pos: "H"
 lang: es
-echo: FALSE
 message: FALSE
 warning: FALSE
 fig-cap-location: top
@@ -96,7 +95,7 @@ datos_largo <- datos |>
   pivot_longer(values_to = "bis", names_to = "minuto", cols = c("bis0", "bis15", "bis30", "bis45", "bis60")) |> 
   mutate(minuto = as.numeric(str_remove(minuto, "bis")))
 
-datos_largo |> 
+datos |> 
   group_by(grupo) |> 
   summarise(n = n())
 
@@ -231,6 +230,7 @@ Modelo maximal para la media
 $$
 Y_{ij} = \left \{ \begin{matrix} \beta_{0} + b_{0i} + \beta_{1M} \cdot t_{ij} + \beta_{2M} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot t_{ij}^2 + \beta_{4M} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ \beta_{0} + b_{0i} + \beta_{1D}\cdot t_{ij} + \beta_{2D} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot t_{ij}^2 + \beta_{4D} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij} \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
 $$
+
 Con $\epsilon_{ij} \sim \mathcal{N}(1,\Sigma)$
 
 Posibles modelos:
@@ -246,9 +246,15 @@ Posibles modelos:
 
 ```{r}
 datos_largo <- datos_largo |> 
-  mutate(minuto2 = minuto^2)
+  mutate(minuto2 = minuto^2,
+         tiempo = case_when(minuto == 0 ~ 1,
+                            minuto == 15 ~ 2,
+                            minuto == 30 ~ 3,
+                            minuto == 45 ~ 4,
+                            minuto == 60 ~ 5,
+                            T ~ 0))
 
-m1 <- lme(bis ~ 1 + minuto + minuto2 + minuto:ind_mc + minuto2:ind_mc, 
+m1 <- lme(bis ~ 1 + minuto:grupo + minuto2:grupo + minuto:ind_mc:grupo + minuto2:ind_mc:grupo, 
         random = ~ 1| id,
         weights = varIdent(form = ~ 1 | grupo*minuto),
         method = "REML",
@@ -260,12 +266,84 @@ m3 <- update(m1, weights = NULL, correlation = corARMA(q = 1))
 
 m4 <- update(m3, weights = varIdent(form = ~ 1 | grupo))
 
+m5 <- update(m1, random = ~ minuto| id)
+
+m6 <- update(m1, weights = NULL, correlation = corAR1(form = ~ 1 | id))
+
+m7 <- update(m1, correlation = corGaus(form = ~ minuto | id))
+
 summary(m1)
 summary(m2)
 summary(m3)
 summary(m4)
+summary(m5)
+summary(m6)
+summary(m7)
 
-anova(m1, m2, m3, m4)
+anova(m1, m5, m2, m3, m4, m6, m7)
+
+
+# Nos quedamos con el modelo 7
 ```
 
+```{r}
+# Comprobacion de la ordenada aleatoria
+
+m7 <- update(m7, method = "ML")
+
+m7_sin_alea <- gls(bis ~ 1 + minuto:grupo + minuto2:grupo + minuto:ind_mc:grupo + minuto2:ind_mc:grupo,
+        weights = varIdent(form = ~ 1 | grupo*minuto),
+        correlation = corGaus(form = ~ minuto | id),
+        method = "ML",
+        data = datos_largo)
+
+anova(m7, m7_sin_alea)
+
+# Nos quedamos con el modelo que no tiene la ordenada aleatoria
+
+# Seria mejor usar un modelo lineal general
+
+getVarCov(m7_sin_alea, type = "marginal")
+
+```
+
+```{r}
+datos_largo |> 
+  ggplot() +
+  aes(x = ind_mc, y = bis, color = grupo) +
+  geom_point() + 
+  facet_wrap(~minuto)
+```
+
+```{r}
+# comprobacion del efecto del indice corporal
+
+m7_1 <- update(m7_sin_alea, bis ~ 1 + minuto:grupo + minuto2:grupo + minuto:ind_mc:grupo)
+
+anova(m7_1, m7_sin_alea)
+
+# test de wald
+Beta = coef(m7_sin_alea)
+lt1 = matrix(c(0, 0, 0 , 0, 0, 0, 0, 0, 1, 0, 0, 0 , 0, 0, 0, 0, 1, 0), nrow = 2, byrow = T)
+anova(m7_sin_alea, L = lt1)
+
+# No hay efecto cuadratico
+
+m7_2 <- update(m7_sin_alea, bis ~ 1 + minuto:grupo + minuto2:grupo)
+
+anova(m7_2, m7_1)
+
+# Duda, sacamos o no?
+
+```
+
+```{r}
+# comprobacion del efecto cuadratico del tiempo
+
+m7_3 <- update(m7_1, bis ~ 1 + minuto + minuto:ind_mc)
+
+anova(m7_3, m7_1)
+summary(m7_1)
+# Si es significativo el efecto del tiempo al cuadrado
+```
 
