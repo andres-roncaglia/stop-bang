@@ -89,11 +89,12 @@ c("#c1f7dc", "#c3d2d5", "#bda0bc", "#5c4742", "#3a2e39", "#4F518C", "#4A6C6F", "
 
 datos <- read_excel("Datos/bis.xlsx") |> 
   mutate(grupo = factor(ifelse(grupo == 1, "MDZ", "DEX")),
-         ind_mc = peso/(talla/100)^2)
+         ind_mc = peso/(talla/100)^2,
+         id = factor(id))
 
 datos_largo <- datos |> 
-  pivot_longer(values_to = "bis", names_to = "Minuto", cols = c("bis0", "bis15", "bis30", "bis45", "bis60")) |> 
-  mutate(Minuto = as.numeric(str_remove(Minuto, "bis")))
+  pivot_longer(values_to = "bis", names_to = "minuto", cols = c("bis0", "bis15", "bis30", "bis45", "bis60")) |> 
+  mutate(minuto = as.numeric(str_remove(minuto, "bis")))
 
 datos_largo |> 
   group_by(grupo) |> 
@@ -103,7 +104,7 @@ datos_largo |>
 
 
 ```{r}
-ggplot(datos_largo, aes(x=Minuto, y = bis, group=id, color = factor(grupo))) +
+ggplot(datos_largo, aes(x=minuto, y = bis, group=id, color = factor(grupo))) +
   geom_point(size = 1) +
   geom_line() +
   facet_wrap(~grupo)
@@ -112,7 +113,7 @@ ggplot(datos_largo, aes(x=Minuto, y = bis, group=id, color = factor(grupo))) +
 
 
 ```{r}
-ggplot(datos_largo, aes(x=Minuto, y = bis,  color=factor(grupo), group = factor(grupo))  ) +
+ggplot(datos_largo, aes(x=minuto, y = bis,  color=factor(grupo), group = factor(grupo))  ) +
   geom_point(stat='summary', fun.y='mean') +
   geom_line(stat='summary', fun.y='mean', size = 1)
 ```
@@ -121,7 +122,7 @@ Relacion cuadratica
 
 
 ```{r}
-ggplot(datos_largo, aes(x=Minuto, y = bis, group = factor(Minuto))  ) +
+ggplot(datos_largo, aes(x=minuto, y = bis, group = factor(minuto))  ) +
   geom_boxplot(fill = 'steelblue') + facet_wrap(~ grupo)
   
 ```
@@ -207,11 +208,11 @@ ggplot(correlog, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
 
 ```{r}
 datos_largo_est <- datos_largo |> 
-  group_by(Minuto, grupo) |> 
+  group_by(minuto, grupo) |> 
   mutate(bis = scale(bis)) |> 
   ungroup()
 
-vgm <- variogram(datos_largo_est$id, datos_largo_est$Minuto, datos_largo_est$bis)
+vgm <- variogram(datos_largo_est$id, datos_largo_est$minuto, datos_largo_est$bis)
 vgm1 = data.frame(vgm$svar)
 
 
@@ -228,6 +229,43 @@ ggplot(data = vgm1, aes(x = vt, y = vv)) +
 Modelo maximal para la media
 
 $$
-Y_{ij} = \left \{ \begin{matrix} \beta_{0} + \beta_{1M} \cdot t_{ij} + \beta_{2M} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot t_{ij}^2 + \beta_{4M} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ \beta_{0} + \beta_{1D}\cdot t_{ij} + \beta_{2D} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot t_{ij}^2 + \beta_{4D} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij} \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
+Y_{ij} = \left \{ \begin{matrix} \beta_{0} + b_{0i} + \beta_{1M} \cdot t_{ij} + \beta_{2M} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot t_{ij}^2 + \beta_{4M} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ \beta_{0} + b_{0i} + \beta_{1D}\cdot t_{ij} + \beta_{2D} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot t_{ij}^2 + \beta_{4D} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij} \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
 $$
 Con $\epsilon_{ij} \sim \mathcal{N}(1,\Sigma)$
+
+Posibles modelos:
+
+1. Ordenada al origen aleatoria, con variabilidad distinta entre tiempo y grupo
+
+2. Ordenada al origen aleatoria, con variabilidad distinta entre tiempo pero no por grupo
+
+3. Ordenada al origen aleatoria, La variabilidad intra-individuo se supone que sigue un patrón de dependencia de orden 1 y variancia igual para ambos grupos
+
+4. Ordenada al origen aleatoria, La variabilidad intra-individuo se supone que sigue un patrón de dependencia de orden 1 y variancia distinta para ambos grupos
+
+
+```{r}
+datos_largo <- datos_largo |> 
+  mutate(minuto2 = minuto^2)
+
+m1 <- lme(bis ~ 1 + minuto + minuto2 + minuto:ind_mc + minuto2:ind_mc, 
+        random = ~ 1| id,
+        weights = varIdent(form = ~ 1 | grupo*minuto),
+        method = "REML",
+        data = datos_largo)
+
+m2 <- update(m1, weights = varIdent(form = ~ 1 | minuto))
+
+m3 <- update(m1, weights = NULL, correlation = corARMA(q = 1))
+
+m4 <- update(m3, weights = varIdent(form = ~ 1 | grupo))
+
+summary(m1)
+summary(m2)
+summary(m3)
+summary(m4)
+
+anova(m1, m2, m3, m4)
+```
+
+
