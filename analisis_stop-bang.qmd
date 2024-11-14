@@ -106,7 +106,7 @@ datos_largo <- datos_largo |>
 
 ```
 
-Se crea una variable indicadora la cuál modela la variabilidad del minuto 0 distinta al resto de los minutos $I = 1 \ \text{Minuto 0} \ - \ 0 \ \text{o.c} $
+Se crea una variable indicadora la cuál modela la variabilidad del minuto 0 distinta al resto de los minutos $I = 1 \ \text{Minuto 0} \ - \ 0 \ \text{o.c}$
 
 
 ```{r}
@@ -373,94 +373,119 @@ $$
 \left \{ \begin{matrix} Y_{ij} = \beta_{0} + b_{0i} + \beta_{1M} \cdot t_{ij} + \beta_{2M} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot (t_{ij} - 15)_+ + \beta_{4M} \cdot I_i \cdot (t_{ij} - 15)_+ + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ Y_{ij} = \beta_{0} + b_{0i} + \beta_{1D}\cdot t_{ij} + \beta_{2D} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot (t_{ij} - 15)_+ + \beta_{4D} \cdot I_i \cdot (t_{ij} - 15)_+ + \epsilon_{ij} \ \ \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
 $$
 
-- Efecto del indice de masa corporal x grupo desp del minuto 15
+
+
+- El efecto del indice de masa corporal sobre ls profundidad de la hipnosis es el mismo para ambos tratamientos durante todo el estudio
+
 
 $$
-H_0) \beta_{4M} = \beta_{4D} \\
-H_1) \beta_{4M} \neq \beta_{4D}
+H_0) \begin{matrix} \beta_{2M} = \beta_{2D} \\ \beta_{4M} = \beta_{4D} \end{matrix} \Rightarrow H_0) \begin{matrix} \beta_{2M} - \beta_{2D} = 0 \\ \beta_{4M} - \beta_{4D} = 0 \end{matrix}
 $$
 
 
 ```{r}
 spline_5_1 <- update(spline_5, method = "ML") # Modelo saturado
 
-spline_5_2 <- update(spline_5_1, fixed = ~ 1 + minuto:grupo + minuto_15:grupo + minuto:ind_mc:grupo + minuto_15:ind_mc)
+spline_5_2 <- update(spline_5_1, fixed = bis ~ 1 + minuto:grupo + minuto_15:grupo + minuto:ind_mc + minuto_15:ind_mc)
 
 anova(spline_5_1, spline_5_2)
 
-L = matrix(c(0, 0, 0, 0, 0, 0, 0, 1, 0,
-             0, 0, 0, 0, 0, 0, 0, 0, 1), nrow = 2, byrow = T)
+Lt = matrix(c(0,0,0,0,0,1,-1,0,0,
+             0,0,0,0,0,0,0,1,-1), byrow = T, nrow = 2)
 
-anova(spline_5_1, L = L)
+
+anova(spline_5_1, L = Lt)
 # No RH0, implica mismo cambio en el IMC
 ```
 
-- Efecto del indice de masa corporal x grupo antes del minuto 15
-
-$$
-H_0) \beta_{2M} = \beta_{2D} \\
-H_1) \beta_{2M} \neq \beta_{2D}
-$$
-
-```{r}
-spline_5_3 <- update(spline_5_2, fixed = ~ 1 + minuto:grupo + minuto_15:grupo + minuto:ind_mc + minuto_15:ind_mc)
-
-anova(spline_5_2, spline_5_3)
-
-L = matrix(c(0, 0, 0, 0, 0, 0, 1, -1), nrow = 1, byrow = T)
-
-anova(spline_5_2, L = L)
-
-spline_5_4 <- update(spline_5_3, fixed = ~ 1 + minuto:grupo + minuto_15:grupo + minuto:ind_mc + minuto_15:ind_mc)
-```
-
-Hay efecto del IMC en el bis y es el mismo en ambos grupos
-
-- Efecto de la tasa de cambio x droga antes del minuto 15
-
-$$
-H_0) \beta_{1M} = \beta_{1D} \\
-H_1) \beta_{1M} \neq \beta_{1D}
-$$
-
-```{r}
-spline_5_4 <- update(spline_5_3, fixed = ~ 1 + minuto + minuto_15:grupo + minuto:ind_mc + minuto_15:ind_mc)
-
-anova(spline_5_3, spline_5_4)
-
-# Rh0
-```
-
-- Efecto de la tasa de cambio x droga despues del minuto 15
-
-$$
-H_0) \beta_{1M} + \beta_{3M} = \beta_{1D} + \beta_{3D}\\
-H_1) \beta_{1M} + \beta_{3M} \neq \beta_{1D} + \beta_{3D}
-$$
-
-```{r}
-spline_5_5 <- update(spline_5_3, fixed = ~ 1 + minuto:grupo + minuto_15 + minuto:ind_mc + minuto_15:ind_mc)
-
-anova(spline_5_3, spline_5_5)
-
-# Rh0
-```
+El efecto del indice de masa corporal sobre ls profundidad de la hipnosis es el mismo para ambos tratamientos durante todo el estudio
 
 $$
 \left \{ \begin{matrix} Y_{ij} = \beta_{0} + b_{0i} + \beta_{1M} \cdot t_{ij} + \beta_{2} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot (t_{ij} - 15)_+ + \beta_{4} \cdot I_i \cdot (t_{ij} - 15)_+ + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ Y_{ij} = \beta_{0} + b_{0i} + \beta_{1D}\cdot t_{ij} + \beta_{2} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot (t_{ij} - 15)_+ + \beta_{4} \cdot I_i \cdot (t_{ij} - 15)_+ + \epsilon_{ij} \ \ \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
 $$
 
+- El efecto de las drogas en el cambio sobre ls profundidad de la hipnosis es el mismo durante todo el estudio
+
+$$
+H_0) \begin{matrix} \beta_{1M} = \beta_{1D} \\ \beta_{3M} = \beta_{3D} \end{matrix} \Rightarrow H_0) \begin{matrix} \beta_{1M} - \beta_{1D} = 0 \\ \beta_{3M} - \beta_{3D} = 0 \end{matrix}
+$$
+
+
+```{r}
+spline_5_3 <- update(spline_5_2, fixed = bis ~ 1 + minuto + minuto_15 + minuto:ind_mc + minuto_15:ind_mc)
+
+anova(spline_5_2, spline_5_3)
+
+Lt = matrix(c(0, 1, -1, 0, 0, 0, 0,
+             0, 0, 0, 1, -1, 0, 0), nrow = 2, byrow = T)
+
+anova(spline_5_2, L = Lt)
+```
+
+Rechazamos, por lo tanto El efecto de las drogas en el cambio sobre ls profundidad de la hipnosis no es el mismo durante todo el estudio
+
+- El efecto de las drogas en el cambio sobre ls profundidad de la hipnosis es el mismo durante al inicio del estudio
+
+```{r}
+spline_5_4 <- update(spline_5_2, fixed = bis ~ 1 + minuto + minuto_15:grupo + minuto:ind_mc + minuto_15:ind_mc)
+
+anova(spline_5_2, spline_5_4)
+
+Lt = matrix(c(0,1,-1,0,0,0,0), byrow = T, nrow = 1)
+
+
+anova(spline_5_2, L = Lt)
+```
+
+No rechazamos por lo tanto si es diferente al principio del estudio
+
+- El efecto de las drogas en el cambio sobre ls profundidad de la hipnosis es el mismo a partir de los 15 minutos del estudio
+
+```{r}
+spline_5_5 <- update(spline_5_2, fixed = bis ~ 1 + minuto:grupo + minuto_15 + minuto:ind_mc + minuto_15:ind_mc)
+
+anova(spline_5_2, spline_5_5)
+
+Lt = matrix(c(0,1,-1,1,-1,0,0), byrow = T, nrow = 1)
+
+
+anova(spline_5_2, L = Lt)
+```
+
+No rechazamos por lo tanto si es diferente a los 15 minutos del estudio
+
+- El efecto del idice corporal en el cambio sobre ls profundidad de la hipnosis es el mismo a lo largo del estudio
+
+```{r}
+spline_5_6 <- update(spline_5_2, fixed = bis ~ 1 + minuto:grupo + minuto_15:grupo)
+
+anova(spline_5_2, spline_5_6)
+
+Lt = matrix(c(0,1,-1,1,-1,0,0), byrow = T, nrow = 1)
+
+
+anova(spline_5_2, L = Lt)
+```
+
+Rechazamos El efecto del idice corporal en el cambio sobre ls profundidad de la hipnosis es difiere a lo largo del estudio
+
+
+# Modelo marginal estimado
+
+$$
+\left \{ \begin{matrix} Y_{ij} = 97.7796 -0.7917 \cdot t_{ij} -0.0115 \cdot I_i \cdot t_{ij} + 0.7259 \cdot (t_{ij} - 15)_+ + 0.0186 \cdot I_i \cdot (t_{ij} - 15)_+  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ Y_{ij} = 97.7796 -0.3332 \cdot t_{ij} -0.0115 \cdot I_i \cdot t_{ij} + 0.1640 \cdot (t_{ij} - 15)_+ + 0.0186 \cdot I_i \cdot (t_{ij} - 15)_+ \ \ \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
+$$
 
 ## Análisis de residuos
 
 ```{r}
 resid.2 <- data.frame(datos_largo, 
-                      pred = fitted(spline_5_3), 
-                      resid_m = resid(spline_5_3, type = 'p', level = 0),
-                      resid_c = resid(spline_5_3, type = 'p', level = 1),
-                      resid_me = scale(resid(spline_5_3, type = 'r', level = 0)),
-                      resid_ce = scale(resid(spline_5_3, type = 'r', level = 1)),
-                      resid_m_chol = resid(spline_5_3, type = 'n', level = 0))
+                      pred = fitted(spline_5_2), 
+                      resid_m = resid(spline_5_2, type = 'p', level = 0),
+                      resid_c = resid(spline_5_2, type = 'p', level = 1),
+                      resid_me = scale(resid(spline_5_2, type = 'r', level = 0)),
+                      resid_ce = scale(resid(spline_5_2, type = 'r', level = 1)),
+                      resid_m_chol = resid(spline_5_2, type = 'n', level = 0))
 
 # Homocedasticidad
 
@@ -484,7 +509,6 @@ ggplot(data = vgm1, aes(x = vt, y = vv)) +
   geom_smooth(method = "loess", se = F, ) +
   theme_light() +
   scale_y_continuous("Variograma muestral", breaks = seq(0, 10, 1)) +
-  coord_cartesian(ylim = c(0, 3)) + 
   labs(title = "Variograma muestral") +
   theme(plot.title = element_text(size = 15)) 
 
@@ -535,8 +559,8 @@ ggplot(data = resid.2) +
   theme(plot.title = element_text(size = 15))
 
 # Outliers en Invididuos
-D = getVarCov(spline_5_3, type="random.effects") 
-Mi = mahalanobis(ranef(spline_5_3), 0, D)
+D = getVarCov(spline_5_2, type="random.effects") 
+Mi = mahalanobis(ranef(spline_5_2), 0, D)
 Mi = data.frame(id = datos_largo$id, Mi)
 
 ggplot(data = Mi) +
