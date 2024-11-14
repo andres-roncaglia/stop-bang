@@ -442,7 +442,6 @@ $$
 spline_5_5 <- update(spline_5_3, fixed = ~ 1 + minuto:grupo + minuto_15 + minuto:ind_mc + minuto_15:ind_mc)
 
 anova(spline_5_3, spline_5_5)
-anova(spline_5_3, spline_5_6)
 
 # Rh0
 ```
