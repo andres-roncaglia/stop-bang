@@ -106,13 +106,21 @@ datos_largo <- datos_largo |>
 
 ```
 
+# Introduccion
+
+El Síndrome de Apnea Obstructiva del Sueño (SAOS) es un trastorno común caracterizado por interrupciones frecuentes en la respiración durante el sueño. Antes de una cirugía, se recomienda el cuestionario “STOP-BANG” para detectar precozmente el SAOS; un puntaje de 3 o más indica una alta probabilidad de padecerlo, siendo estos pacientes considerados STOP-BANG positivos. El SAOS está asociado con un mayor riesgo de complicaciones y morbimortalidad en el período perioperatorio, por lo que se sugiere seleccionar adecuadamente las drogas, monitorear estrictamente la ventilación y la profundidad de la hipnosis.
+
+Se realizó un estudio clínico, prospectivo y doble ciego, en un efector de salud de la ciudad de Rosario con el objetivo de comparar el efecto de dos drogas, midazolam (MDZ) y dexmedetomidina (DEX), sobre la profundidad de la hipnosis lograda, mediante el índice Biespectral (BIS), durante la cirugía en pacientes con STOP-BANG positivos que recibieron anestesia espinal. Se incluyeron 48 pacientes que a los cuales se les administró aleatoriamente una de las drogas: MDZ o DEX. A cada paciente se le midió el índice BIS, al inicio del estudio (minuto 0), y luego cada 15 minutos hasta completar los 60 minutos de estudio.
+
 Se crea una variable indicadora la cuál modela la variabilidad del minuto 0 distinta al resto de los minutos $I = 1 \ \text{Minuto 0} \ - \ 0 \ \text{o.c}$
 
 
 ```{r}
-ggplot(datos_largo, aes(x=minuto, y = bis, group=id, color = factor(grupo))) +
-  geom_point(size = 1) +
-  geom_line() +
+ggplot(datos_largo, aes(x=minuto, y = bis, color = factor(grupo))) +
+  geom_point(aes(group=id), size = 1, color = "grey60") +
+  geom_line(aes(group=id), alpha = 0.6, color = "grey60") +
+  geom_point(stat = "summary", fun.y = "mean", size = 1.2) +
+  geom_line(stat = "summary", fun.y  = "mean", linewidth = 1.2) +
   facet_wrap(~grupo)
 ```
 
@@ -213,45 +221,6 @@ ggplot(correlog, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
   
 ```
 
-```{r}
-### Sexo: Masculino
-datos_mdz_est.lag1_2 <- cor(c(datos_mdz_est$bis15, datos_mdz_est$bis30, datos_mdz_est$bis45), 
-                c(datos_mdz_est$bis30, datos_mdz_est$bis45, datos_mdz_est$bis60), 
-                use = 'na.or.complete')
-datos_mdz_est.lag2_2 <- cor(c(datos_mdz_est$bis15, datos_mdz_est$bis30), 
-                c(datos_mdz_est$bis45, datos_mdz_est$bis60),
-                use = 'na.or.complete')
-datos_mdz_est.lag3_2 <- cor(c(datos_mdz_est$bis15), 
-                c(datos_mdz_est$bis60), 
-                use = 'na.or.complete')
-
-ac_mdz_2 <- data.frame(rezago = seq(0, 3, 1), 
-                           ac = c(1, datos_mdz_est.lag1_2, datos_mdz_est.lag2_2, datos_mdz_est.lag3_2), grupo = 'MDZ')
-
-### Sexo: Femenino
-datos_dex_est.lag1_2 <- cor(c(datos_dex_est$bis15, datos_dex_est$bis30, datos_dex_est$bis45), 
-                c(datos_dex_est$bis30, datos_dex_est$bis45, datos_dex_est$bis60), 
-                use = 'na.or.complete')
-datos_dex_est.lag2_2 <- cor(c(datos_dex_est$bis15, datos_dex_est$bis30), 
-                c(datos_dex_est$bis45, datos_dex_est$bis60),
-                use = 'na.or.complete')
-datos_dex_est.lag3_2 <- cor(c(datos_dex_est$bis15), 
-                c(datos_dex_est$bis60), 
-                use = 'na.or.complete')
-
-ac_dex_2 <- data.frame(rezago = seq(0, 3, 1), 
-                           ac = c(1, datos_dex_est.lag1_2, datos_dex_est.lag2_2, datos_dex_est.lag3_2), grupo = 'DEX')
-
-
-
-correlog_2 <- rbind(ac_mdz_2, ac_dex_2)
-
-ggplot(correlog_2, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
-  geom_hline(yintercept = 0, lty = "dashed") +
-  geom_point(size = 2) +
-  geom_line(size = 1) 
-  
-```
 
 
 
@@ -347,21 +316,41 @@ spline_5 <- update(spline_2, correlation = corGaus(form = ~ minuto | id))
 
 
 anova(spline_1, spline_2, spline_3, spline_4, spline_5)
+```
 
 
-predicciones <- predict(spline_5, datos_largo) # Predicciones con el modelo spline
-predicciones2 <- predict(m5, datos_largo) # Predicciones con el modelo cuadratico
+```{r}
+datos_comparacion <- datos_largo |> 
+  select(grupo, minuto, bis)
+
+
+
+predicciones <- as.data.frame(predict(spline_5, datos_largo)) |> # Predicciones con el modelo spline
+  mutate(grupo = paste0(datos_comparacion$grupo,"s"),
+         minuto = datos_comparacion$minuto) |> 
+  rename(bis = `predict(spline_5, datos_largo)`)
+
+
+predicciones2 <- as.data.frame(predict(m5, datos_largo)) |> # Predicciones con el modelo cuadratico
+  mutate(grupo = paste0(datos_comparacion$grupo,"2"),
+         minuto = datos_comparacion$minuto) |> 
+  rename(bis = `predict(m5, datos_largo)`)
+
+datos_comparacion <- rbind(datos_comparacion, predicciones, predicciones2)
 
 # Grafico con las predicciones
-(ggplot(datos_largo |> mutate(predicciones = predicciones), aes(x=minuto, y = predicciones,  color=factor(grupo), group = factor(grupo))  ) +
+datos_comparacion |> 
+  arrange(grupo) |> 
+  ggplot(
+    aes(x=minuto, y = bis,  color=grupo, group = grupo)
+    ) +
   geom_point(stat='summary', fun.y='mean') +
-  geom_line(stat='summary', fun.y='mean', size = 1)) +
-(ggplot(datos_largo |> mutate(predicciones = predicciones2), aes(x=minuto, y = predicciones,  color=factor(grupo), group = factor(grupo))  ) +
-  geom_point(stat='summary', fun.y='mean') +
-  geom_line(stat='summary', fun.y='mean', size = 1)) +
-(ggplot(datos_largo, aes(x=minuto, y = bis,  color=factor(grupo), group = factor(grupo))) +
-  geom_point(stat='summary', fun.y='mean') +
-  geom_line(stat='summary', fun.y='mean', size = 1))
+  geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZ" | grupo == "DEX")) +
+  geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZs" | grupo == "DEXs"), 
+            lty = "dashed", alpha = 0.7) +
+  geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZ2" | grupo == "DEX2"), 
+            lty = "dotted", alpha = 0.7) +
+  scale_color_manual(values = c("firebrick", "orangered", "orange", "dodgerblue", "lightblue", "deepskyblue"))
 
  
 ```
@@ -575,5 +564,7 @@ ggplot(data = Mi) +
 Mi |> filter(Mi > 0.6)
 ```
 
+
+# Conclusion
 
 
