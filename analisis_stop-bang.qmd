@@ -240,7 +240,8 @@ ggplot(correlog, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
   scale_color_manual(values = c("#FF7700", "#00BBEE"), name = "Droga proporcionada") +
   theme(strip.background = element_rect(colour="black",
                                         fill="#FFE7C2"),
-        legend.background = element_rect(fill="#FFE7C2")) 
+        legend.background = element_rect(fill="#FFE7C2"),
+        plot.title = element_text(hjust = 0)) 
   
 ```
 
@@ -342,6 +343,7 @@ spline_5 <- update(spline_2, correlation = corGaus(form = ~ minuto | id))
 
 anova |> 
   select(Model, df, AIC, BIC) |> 
+  rename(Modelo = Model, GL = df) |> 
   mutate(Grupos = c("Diferente", "Iguales", "Iguales", "Iguales", "Iguales"),
          Tiempo = c("Diferente", "Diferente", "Diferente", "Diferente", "Diferente"),
          "Estructura de correlación" = c("-", "-", "Independencia de\n primer orden", "AR(1)", "Gaussiana"),
@@ -373,9 +375,10 @@ anova |>
     style = list(
       cell_text(weight = "bold") # Apply bold styling
     ),
-    locations = cells_column_spanners() # Target column names
-  ) |> 
-  gtsave(filename = "tabla_anova.png", path = "Imgs/Graficos")
+    locations = cells_column_spanners() )# Target column names |> 
+  # gtsave(filename = "tabla_anova.png", path = "Imgs/Graficos")
+
+
 ```
 
 
@@ -419,7 +422,8 @@ datos_comparacion |>
   labs(x = "Minuto", y = "Índice Biespectral", title = "Fig. 4: Comparación de la parte media del modelo") +
   theme(strip.background = element_rect(colour="black",
                                         fill="#FFE7C2"),
-        legend.background = element_rect(fill="#FFE7C2"))
+        legend.background = element_rect(fill="#FFE7C2"),
+        plot.title = element_text(hjust = 0))
 
 
 ```
