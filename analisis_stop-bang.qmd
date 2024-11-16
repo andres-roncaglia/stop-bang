@@ -74,6 +74,7 @@ library(joineR)
 library(nlme)
 library(patchwork)
 library(qqplotr)
+library(gt)
 
 theme_set(theme_bw() + 
             theme(plot.title = element_text(hjust = 0.5),
@@ -315,7 +316,44 @@ spline_4 <- update(spline_1, weights = varIdent(form = ~ 1 | indicadora), correl
 spline_5 <- update(spline_2, correlation = corGaus(form = ~ minuto | id))
 
 
-anova(spline_1, spline_2, spline_3, spline_4, spline_5)
+(anova <- anova(spline_1, spline_2, spline_3, spline_4, spline_5))
+
+anova |> 
+  select(Model, df, AIC, BIC) |> 
+  mutate(Grupos = c("Diferente", "Iguales", "Iguales", "Iguales", "Iguales"),
+         Tiempo = c("Diferente", "Diferente", "Diferente", "Diferente", "Diferente"),
+         "Estructura de correlación" = c("-", "-", "Independencia de\n primer orden", "AR(1)", "Gaussiana"),
+         "Efectos aleatorios" = c("Ordenada\n aleatoria", "Ordenada\n aleatoria", "Ordenada\n aleatoria", "Ordenada\n aleatoria", "Ordenada\n aleatoria")) |> 
+  gt() |> 
+  tab_options(table.background.color = "#c6d8f2",
+              table.font.size = px(15),
+              table.font.color = "#0e1c36",heading.title.font.size = px(18), table.border.bottom.color = "#0e1c36", column_labels.border.bottom.color = "#0e1c36", column_labels.border.top.color = "#0e1c36", table_body.hlines.color = "#0e1c36") |>
+  tab_spanner(
+    label = "Variancia",
+    columns = c(Grupos, Tiempo)
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#0e1c36"),
+      cell_text(color = "#efdbbd")
+    ),
+    locations = cells_body(
+      rows = c(5)
+    )
+  ) |> 
+  tab_style(
+    style = list(
+      cell_text(weight = "bold") # Apply bold styling
+    ),
+    locations = cells_column_labels() # Target column names
+  ) |> 
+  tab_style(
+    style = list(
+      cell_text(weight = "bold") # Apply bold styling
+    ),
+    locations = cells_column_spanners() # Target column names
+  ) |> 
+  gtsave(filename = "tabla_anova.png", path = "Imgs/Graficos")
 ```
 
 
