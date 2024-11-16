@@ -78,7 +78,8 @@ library(gt)
 
 theme_set(theme_bw() + 
             theme(plot.title = element_text(hjust = 0.5),
-                  legend.position = "bottom"))
+                  legend.position = "bottom",
+                  plot.background = element_rect("#FFE7C2")))
 
 knitr::opts_chunk$set(fig.align = "center")
 ```
@@ -122,7 +123,14 @@ ggplot(datos_largo, aes(x=minuto, y = bis, color = factor(grupo))) +
   geom_line(aes(group=id), alpha = 0.6, color = "grey60") +
   geom_point(stat = "summary", fun.y = "mean", size = 1.2) +
   geom_line(stat = "summary", fun.y  = "mean", linewidth = 1.2) +
-  facet_wrap(~grupo)
+  facet_wrap(~grupo) +
+  labs(x = "Minuto", y = "Índice Biespectral", title = "Fig. 1: Evolución del Índice Biespectral de los pacientes según la droga proporcionada") +
+  scale_x_continuous(breaks = seq(0, 60, 15)) +
+  scale_color_manual(values = c("#FF7700", "#00BBEE")) +
+  theme(legend.position = "none",
+        strip.background = element_rect(colour="black",
+                                        fill="#FFE7C2"),
+        plot.title = element_text(hjust = 0))
 ```
 
 
@@ -137,8 +145,16 @@ Relacion cuadratica
 
 
 ```{r}
-ggplot(datos_largo, aes(x=minuto, y = bis, group = factor(minuto))  ) +
-  geom_boxplot(fill = 'steelblue') + facet_wrap(~ grupo)
+ggplot(datos_largo, aes(x=minuto, y = bis, group = factor(minuto), fill = factor(grupo))) +
+  geom_boxplot() + 
+  facet_wrap(~ grupo) +
+  labs(x = "Minuto", y = "Índice Biespectral", title = "Fig. 2: Distribución del Índice Biespectral según droga proporcionada y minuto") +
+  scale_x_continuous(breaks = seq(0, 60, 15)) +
+  scale_fill_manual(values = c("#FF7700", "#00BBEE")) +
+  theme(legend.position = "none",
+        strip.background = element_rect(colour="black",
+                                        fill="#FFE7C2"),
+        plot.title = element_text(hjust = 0))
   
 ```
 
@@ -216,9 +232,15 @@ ac_dex <- data.frame(rezago = seq(0, 4, 1),
 correlog <- rbind(ac_mdz, ac_dex)
 
 ggplot(correlog, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
-  geom_hline(yintercept = 0, lty = "dashed") +
+  geom_hline(yintercept = 0, lty = "dashed", color = "grey60") +
   geom_point(size = 2) +
-  geom_line(size = 1) 
+  geom_line(size = 1) +
+  labs(x = expression("Rezago" ~ u[ijj^"'"]), y = expression(rho[k]), title = "Fig. 3: Correlograma según droga proporcionada") +
+  scale_x_continuous(breaks = seq(0, 4, 1), labels = c(0, 15, 30, 45, 60)) +
+  scale_color_manual(values = c("#FF7700", "#00BBEE"), name = "Droga proporcionada") +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="#FFE7C2"),
+        legend.background = element_rect(fill="#FFE7C2")) 
   
 ```
 
@@ -376,21 +398,30 @@ predicciones2 <- as.data.frame(predict(m5, datos_largo)) |> # Predicciones con e
 
 datos_comparacion <- rbind(datos_comparacion, predicciones, predicciones2)
 
+# Reordenamos los niveles del factor
+niveles <- forcats::fct_relevel(datos_comparacion$grupo, c("DEX", "MDZ", "DEXs", "MDZs", "DEX2", "MDZ2"))
+
+
 # Grafico con las predicciones
 datos_comparacion |> 
+  mutate(grupo = niveles) |> 
   arrange(grupo) |> 
   ggplot(
     aes(x=minuto, y = bis,  color=grupo, group = grupo)
     ) +
   geom_point(stat='summary', fun.y='mean') +
-  geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZ" | grupo == "DEX")) +
+  geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZ" | grupo == "DEX"), linewidth = 1) +
   geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZs" | grupo == "DEXs"), 
-            lty = "dashed", alpha = 0.7) +
+            lty = "dashed", alpha = 0.7, linewidth = 1.2) +
   geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZ2" | grupo == "DEX2"), 
-            lty = "dotted", alpha = 0.7) +
-  scale_color_manual(values = c("firebrick", "orangered", "orange", "dodgerblue", "lightblue", "deepskyblue"))
+            lty = "dotted", alpha = 0.7, linewidth = 1.2) +
+  scale_color_manual(values = c("#FF7700", "#00BBEE", "#FF7700", "#00BBEE", "#FF7700", "#00BBEE"), name = "Droga proprocionada", labels = c("DEX (Observado)", "MDZ (Observado)", "DEX (Cuadrática)", "MDZ (Cuadrática)", "DEX (Spline)", "MDZ (Spline)")) +
+  labs(x = "Minuto", y = "Índice Biespectral", title = "Fig. 4: Comparación de la parte media del modelo") +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="#FFE7C2"),
+        legend.background = element_rect(fill="#FFE7C2"))
 
- 
+
 ```
 
 
