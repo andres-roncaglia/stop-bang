@@ -77,9 +77,14 @@ library(qqplotr)
 library(gt)
 
 theme_set(theme_bw() + 
-            theme(plot.title = element_text(hjust = 0.5),
+            theme(plot.title = element_text(size = 18, hjust = 0, face = "bold"),     # Title size
+                  axis.title = element_text(size = 16),     # Axis titles
+                  axis.text = element_text(size = 15),      # Axis text
+                  legend.text = element_text(size = 14),    # Legend text
+                  legend.title = element_text(size = 14),    # Legend title,
                   legend.position = "bottom",
-                  plot.background = element_rect("#FFE7C2")))
+                  plot.background = element_rect("#efdbbd"),
+                  panel.background = element_rect("#f3f8fb")))
 
 knitr::opts_chunk$set(fig.align = "center")
 ```
@@ -120,9 +125,9 @@ Se crea una variable indicadora la cuál modela la variabilidad del minuto 0 dis
 ```{r}
 ggplot(datos_largo, aes(x=minuto, y = bis, color = factor(grupo))) +
   geom_point(aes(group=id), size = 1, color = "grey60") +
-  geom_line(aes(group=id), alpha = 0.6, color = "grey60") +
-  geom_point(stat = "summary", fun.y = "mean", size = 1.2) +
-  geom_line(stat = "summary", fun.y  = "mean", linewidth = 1.2) +
+  geom_line(aes(group=id), alpha = 0.8, color = "grey60") +
+  geom_point(stat = "summary", fun.y = "mean", size = 1.4) +
+  geom_line(stat = "summary", fun.y  = "mean", linewidth = 1.4) +
   facet_wrap(~grupo) +
   labs(x = "Minuto", y = "Índice Biespectral", title = "Fig. 1: Evolución del Índice Biespectral de los pacientes según la droga proporcionada") +
   scale_x_continuous(breaks = seq(0, 60, 15)) +
@@ -130,7 +135,7 @@ ggplot(datos_largo, aes(x=minuto, y = bis, color = factor(grupo))) +
   theme(legend.position = "none",
         strip.background = element_rect(colour="black",
                                         fill="#FFE7C2"),
-        plot.title = element_text(hjust = 0))
+        strip.text.x = element_text(size = 16))
 ```
 
 
@@ -241,7 +246,11 @@ ggplot(correlog, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
   theme(strip.background = element_rect(colour="black",
                                         fill="#FFE7C2"),
         legend.background = element_rect(fill="#FFE7C2"),
-        plot.title = element_text(hjust = 0)) 
+        plot.title = element_text(hjust = 0),
+        legend.position = c(0.99,0.99), 
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) 
   
 ```
 
@@ -413,17 +422,23 @@ datos_comparacion |>
     aes(x=minuto, y = bis,  color=grupo, group = grupo)
     ) +
   geom_point(stat='summary', fun.y='mean') +
-  geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZ" | grupo == "DEX"), linewidth = 1) +
+  geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZ" | grupo == "DEX"), linewidth = 1.4) +
   geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZs" | grupo == "DEXs"), 
-            lty = "dashed", alpha = 0.7, linewidth = 1.2) +
+            lty = "dashed", alpha = 0.7, linewidth = 1.4) +
   geom_line(stat='summary', fun.y='mean', size = 1, data = filter(datos_comparacion, grupo == "MDZ2" | grupo == "DEX2"), 
-            lty = "dotted", alpha = 0.7, linewidth = 1.2) +
-  scale_color_manual(values = c("#FF7700", "#00BBEE", "#FF7700", "#00BBEE", "#FF7700", "#00BBEE"), name = "Droga proprocionada", labels = c("DEX (Observado)", "MDZ (Observado)", "DEX (Cuadrática)", "MDZ (Cuadrática)", "DEX (Spline)", "MDZ (Spline)")) +
+            lty = "dotted", alpha = 0.7, linewidth = 1.4) +
+  scale_color_manual(values = c("#FF7700", "#00BBEE", "#FF7700", "#00BBEE", "#FF7700", "#00BBEE"), 
+                     name = "Droga proprocionada", labels = c("DEX (Observado)", "MDZ (Observado)", "DEX (Cuadrática)", "MDZ (Cuadrática)", "DEX (Spline)", "MDZ (Spline)"),
+                     guide = guide_legend(nrow = 2)) +
   labs(x = "Minuto", y = "Índice Biespectral", title = "Fig. 4: Comparación de la parte media del modelo") +
   theme(strip.background = element_rect(colour="black",
                                         fill="#FFE7C2"),
         legend.background = element_rect(fill="#FFE7C2"),
-        plot.title = element_text(hjust = 0))
+        plot.title = element_text(hjust = 0),
+        legend.position = c(0.99,0.99), 
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6))
 
 
 ```
