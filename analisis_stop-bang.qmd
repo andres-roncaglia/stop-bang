@@ -656,3 +656,4 @@ Mi |> filter(Mi > 0.6)
 # Conclusion
 
 
+$$\begin{matrix} \hat\beta_0 & 97.7796 \\ \hat\beta_{1M} & -0.7917\\ \hat\beta_{1D} & -0.3332  \\ \hat\beta_{2}& -0.0115 \\ \hat\beta_{3M} & 0.7259 \\ \hat\beta_{3D} & 0.1640\\\hat\beta_{4} & 0.0186 \end{matrix}$$
