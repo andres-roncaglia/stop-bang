@@ -63,7 +63,7 @@ knitr::include_graphics("Imgs/logounr.png")
 
 \newpage
 
-```{r}
+```{r librerias que usamos}
 library(readxl)
 library(dplyr)
 library(tidyr)
@@ -89,19 +89,22 @@ theme_set(theme_bw() +
 knitr::opts_chunk$set(fig.align = "center")
 ```
 
-```{r}
+```{r datos}
 # Paleta: https://coolors.co/c1f7dc-c3d2d5-bda0bc-5c4742-3a2e39
 c("#c1f7dc", "#c3d2d5", "#bda0bc", "#5c4742", "#3a2e39", "#4F518C", "#4A6C6F", "#201E1F", "#EB9486", "#C97B84", "#41658A", "#414073")
 
+# Carga de los datos
 datos <- read_excel("Datos/bis.xlsx") |> 
   mutate(grupo = factor(ifelse(grupo == 1, "MDZ", "DEX")),
          ind_mc = peso/(talla/100)^2,
          id = factor(id))
 
+# Pasamos a formato largo
 datos_largo <- datos |> 
   pivot_longer(values_to = "bis", names_to = "minuto", cols = c("bis0", "bis15", "bis30", "bis45", "bis60")) |> 
   mutate(minuto = as.numeric(str_remove(minuto, "bis")))
 
+# Cantidad de pacientes asignados a cada droga
 datos |> 
   group_by(grupo) |> 
   summarise(n = n())
@@ -122,7 +125,7 @@ Se realizó un estudio clínico, prospectivo y doble ciego, en un efector de sal
 Se crea una variable indicadora la cuál modela la variabilidad del minuto 0 distinta al resto de los minutos $I = 1 \ \text{Minuto 0} \ - \ 0 \ \text{o.c}$
 
 
-```{r}
+```{r grafico de perfiles individuales}
 ggplot(datos_largo, aes(x=minuto, y = bis, color = factor(grupo))) +
   geom_point(aes(group=id), size = 1, color = "grey60") +
   geom_line(aes(group=id), alpha = 0.8, color = "grey60") +
@@ -139,17 +142,14 @@ ggplot(datos_largo, aes(x=minuto, y = bis, color = factor(grupo))) +
 ```
 
 
-
-```{r}
+```{r gráfico de perfiles promedios}
+# Se realizó este gráfico, pero decidimos no ponerlo en el poster
 ggplot(datos_largo, aes(x=minuto, y = bis,  color=factor(grupo), group = factor(grupo))  ) +
   geom_point(stat='summary', fun.y='mean') +
   geom_line(stat='summary', fun.y='mean', size = 1)
 ```
 
-Relacion cuadratica
-
-
-```{r}
+```{r boxplot comparativo según droga proporcionada}
 ggplot(datos_largo, aes(x=minuto, y = bis, group = factor(minuto), fill = factor(grupo))) +
   geom_boxplot() + 
   facet_wrap(~ grupo) +
@@ -164,24 +164,25 @@ ggplot(datos_largo, aes(x=minuto, y = bis, group = factor(minuto), fill = factor
 ```
 
 
-```{r}
+```{r matrices de covariancia y correlacion}
+# Filtramos la base
 datos_mdz = filter(datos, grupo == "MDZ")
 datos_dex = filter(datos, grupo == "DEX")
 
-
+# Matrices de correlación según droga
 round(cor(datos_mdz[,5:9], use = "pairwise.complete.obs"), 2)
 round(cor(datos_dex[,5:9], use = "pairwise.complete.obs"), 2)
 
+# Matrices de covariancia según droga
 round(cov(datos_mdz[,5:9], use = "pairwise.complete.obs"), 2)
 round(cov(datos_dex[,5:9], use = "pairwise.complete.obs"), 2)
-
-
 ```
 
 Variancias distintas en el tiempo y entre grupos o solo en el tiempo
-Correlacion ni idea
+Presencia de correlación serial
 
-```{r}
+```{r estandarizacion de los datos y correlograma}
+# Estandarización de los datos para cada grupo
 datos_dex_est <- datos_dex |> 
   mutate(bis0 = scale(bis0) ,
          bis15 = scale(bis15), 
@@ -196,9 +197,8 @@ datos_mdz_est <- datos_mdz |>
          bis45 = scale(bis45), 
          bis60 = scale(bis60))
 
-
-
-### Sexo: Masculino
+### Calculamos las correlaciones para el correlograma
+### Droga: MDZ
 datos_mdz_est.lag1 <- cor(c(datos_mdz_est$bis0, datos_mdz_est$bis15, datos_mdz_est$bis30, datos_mdz_est$bis45), 
                 c(datos_mdz_est$bis15, datos_mdz_est$bis30, datos_mdz_est$bis45, datos_mdz_est$bis60), 
                 use = 'na.or.complete')
@@ -212,10 +212,11 @@ datos_mdz_est.lag4 <- cor(c(datos_mdz_est$bis0),
                 c(datos_mdz_est$bis60), 
                 use = 'na.or.complete')
 
+# Dataframe que contiene las correlaciones
 ac_mdz <- data.frame(rezago = seq(0, 4, 1), 
                            ac = c(1, datos_mdz_est.lag1, datos_mdz_est.lag2, datos_mdz_est.lag3, datos_mdz_est.lag4), grupo = 'MDZ')
 
-### Sexo: Femenino
+### Droga: DEX
 datos_dex_est.lag1 <- cor(c(datos_dex_est$bis0, datos_dex_est$bis15, datos_dex_est$bis30, datos_dex_est$bis45), 
                 c(datos_dex_est$bis15, datos_dex_est$bis30, datos_dex_est$bis45, datos_dex_est$bis60), 
                 use = 'na.or.complete')
@@ -229,13 +230,14 @@ datos_dex_est.lag4 <- cor(c(datos_dex_est$bis0),
                 c(datos_dex_est$bis60), 
                 use = 'na.or.complete')
 
+# Dataframe que contiene las correlaciones
 ac_dex <- data.frame(rezago = seq(0, 4, 1), 
                            ac = c(1, datos_dex_est.lag1, datos_dex_est.lag2, datos_dex_est.lag3, datos_dex_est.lag4), grupo = 'DEX')
 
-
-
+# Dataframe que contiene las correlaciones calculadas anteriormente
 correlog <- rbind(ac_mdz, ac_dex)
 
+# Correlograma
 ggplot(correlog, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
   geom_hline(yintercept = 0, lty = "dashed", color = "grey60") +
   geom_point(size = 2) +
@@ -255,35 +257,33 @@ ggplot(correlog, aes(x = rezago, y = ac, group = grupo, color = grupo)) +
 ```
 
 
-
-
-```{r}
+```{r variograma muestral}
+# Dataframe en formato largo estandarizados
 datos_largo_est <- datos_largo |> 
   group_by(minuto, grupo) |> 
   mutate(bis = scale(bis)) |> 
   ungroup()
 
+# Cálculo del variograma
 vgm <- variogram(datos_largo_est$id, datos_largo_est$minuto, datos_largo_est$bis)
 vgm1 = data.frame(vgm$svar)
 
-
+# Gráfico del variograma muestral
 ggplot(data = vgm1, aes(x = vt, y = vv)) +
   geom_point(color = 'grey50', na.rm = TRUE) +
   stat_summary(fun = mean, geom = 'line', color = 'orangered', size = 1, na.rm = TRUE) + 
   geom_hline(yintercept = vgm$sigma2) +
-  scale_x_continuous("Rezago") +
+  scale_x_continuous("Rezago", breaks = seq(0, 60, 15)) +
   scale_y_continuous("Variograma muestral")
-
-
 ```
 
-Modelo maximal para la media
+Modelo maximal para la media cuando se considera una relación cuadrática
 
 $$
 Y_{ij} = \left \{ \begin{matrix} \beta_{0} + b_{0i} + \beta_{1M} \cdot t_{ij} + \beta_{2M} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot t_{ij}^2 + \beta_{4M} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ \beta_{0} + b_{0i} + \beta_{1D}\cdot t_{ij} + \beta_{2D} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot t_{ij}^2 + \beta_{4D} \cdot I_i \cdot t_{ij}^2 + \epsilon_{ij} \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
 $$
 
-Con $\epsilon_{ij} \sim \mathcal{N}(0,\Sigma)$
+Con $\boldsymbol{b} \sim \mathcal{N}(\boldsymbol{0},\boldsymbol{D}), \ \ \ \boldsymbol{\epsilon_{i}} \sim \mathcal{N}(\boldsymbol{0},\boldsymbol{R}), \ \ \ \boldsymbol{b} \ \text{y} \ \boldsymbol{e_i} \ \text{independientes}$
 
 Posibles modelos:
 
@@ -291,12 +291,15 @@ Posibles modelos:
 
 2. Ordenada al origen aleatoria, con variabilidad distinta entre tiempo pero no por grupo
 
-3. Ordenada al origen aleatoria, La variabilidad intra-individuo se supone que sigue un patrón de dependencia de orden 1 y variancia igual para ambos grupos
+3. Ordenada al origen aleatoria, La variabilidad intra-individuo se supone que sigue un patrón de independencia de orden 1 y variancia igual para ambos grupos
 
-4. Ordenada al origen aleatoria, La variabilidad intra-individuo se supone que sigue un patrón de dependencia de orden 1 y variancia distinta para ambos grupos
+4. Ordenada al origen aleatoria, La variabilidad intra-individuo se supone que sigue un patrón de AR(1) y variancia distinta para ambos grupos
 
+5. Ordenada aleatoria, la variabilidad intra-individuo se supone que sigue un patrón gaussiana, y variancia distinta en el tiempo y por grupo
 
-```{r}
+```{r modelos parte media relación cuadrática}
+# Se le agrega la variable tiempo al cuadrado al dataframe
+
 datos_largo <- datos_largo |> 
   mutate(minuto2 = minuto^2,
          tiempo = case_when(minuto == 0 ~ 1,
@@ -306,6 +309,8 @@ datos_largo <- datos_largo |>
                             minuto == 60 ~ 5,
                             T ~ 0))
 
+# Modelos
+
 m1 <- lme(bis ~ 1 + minuto:grupo + minuto2:grupo + minuto:ind_mc:grupo + minuto2:ind_mc:grupo, 
         random = ~ 1| id,
         weights = varIdent(form = ~ 1 | grupo*indicadora),
@@ -314,25 +319,29 @@ m1 <- lme(bis ~ 1 + minuto:grupo + minuto2:grupo + minuto:ind_mc:grupo + minuto2
 
 m2 <- update(m1, weights = varIdent(form = ~ 1 | indicadora))
 
-m3 <- update(m1, weights = NULL, correlation = corARMA(q = 1))
+m3 <- update(m1, weights = varIdent(form = ~ 1 | indicadora), correlation = corARMA(q = 1))
 
-m4 <- update(m1, weights = NULL, correlation = corAR1(form = ~ 1 | id))
+m4 <- update(m1, correlation = corAR1(form = ~ 1 | id))
 
 m5 <- update(m1, correlation = corGaus(form = ~ minuto | id))
-
-summary(m1)
-summary(m2)
-summary(m3)
-
-anova(m1, m2)
-
-anova(m1, m2, m3, m4, m5)
-
-# Nos quedamos con el modelo 7
 ```
+Modelo maximal para la parte media, considerando una regresión spline
 
+Posibles modelos:
 
-```{r}
+1. Ordenada al origen aleatoria, con variabilidad distinta entre tiempo y grupo
+
+2. Ordenada al origen aleatoria, con variabilidad distinta entre tiempo pero no por grupo
+
+3. Ordenada al origen aleatoria, La variabilidad intra-individuo se supone que sigue un patrón de independencia de orden 1 y variancia igual para ambos grupos y distinta en el tiempo
+
+4. Ordenada al origen aleatoria, La variabilidad intra-individuo se supone que sigue un patrón de AR(1) y variancia distinta para ambos grupos y distinta en el tiempo
+
+5. Ordenada aleatoria, la variabilidad intra-individuo se supone que sigue un patrón gaussiana, y variancia distinta en el tiempo, pero no por grupo
+
+```{r modelos parte media relación spline}
+# Posibles modelos
+
 spline_1 <- lme(bis ~ 1 + minuto:grupo + minuto_15:grupo + minuto:ind_mc:grupo + minuto_15:ind_mc:grupo, 
         random = ~ 1| id,
         weights = varIdent(form = ~ 1 | grupo*indicadora),
@@ -347,9 +356,9 @@ spline_4 <- update(spline_1, weights = varIdent(form = ~ 1 | indicadora), correl
 
 spline_5 <- update(spline_2, correlation = corGaus(form = ~ minuto | id))
 
+anova <- anova(spline_1, spline_2, spline_3, spline_4, spline_5)
 
-(anova <- anova(spline_1, spline_2, spline_3, spline_4, spline_5))
-
+# Tabla para el poster
 anova |> 
   select(Model, df, AIC, BIC) |> 
   rename(Modelo = Model, GL = df) |> 
@@ -391,28 +400,28 @@ anova |>
 ```
 
 
-```{r}
+```{r gráfico comparativo de la parte media}
+# Dataframe para hacer el gráfico comparativo
 datos_comparacion <- datos_largo |> 
   select(grupo, minuto, bis)
 
-
-
+# Predicciones para el modelo spline
 predicciones <- as.data.frame(predict(spline_5, datos_largo)) |> # Predicciones con el modelo spline
   mutate(grupo = paste0(datos_comparacion$grupo,"s"),
          minuto = datos_comparacion$minuto) |> 
   rename(bis = `predict(spline_5, datos_largo)`)
 
-
+# Predicciones para el modelo cuadrático
 predicciones2 <- as.data.frame(predict(m5, datos_largo)) |> # Predicciones con el modelo cuadratico
   mutate(grupo = paste0(datos_comparacion$grupo,"2"),
          minuto = datos_comparacion$minuto) |> 
   rename(bis = `predict(m5, datos_largo)`)
 
+# Se agregan los dataframe creados antes al dataframe para hacer el gráfico
 datos_comparacion <- rbind(datos_comparacion, predicciones, predicciones2)
 
 # Reordenamos los niveles del factor
 niveles <- forcats::fct_relevel(datos_comparacion$grupo, c("DEX", "MDZ", "DEXs", "MDZs", "DEX2", "MDZ2"))
-
 
 # Grafico con las predicciones
 datos_comparacion |> 
@@ -443,30 +452,33 @@ datos_comparacion |>
 
 ```
 
-
 ## Análisis de la parte media
 
+Modelo maximal para la parte media usando la regresión spline
 $$
 \left \{ \begin{matrix} Y_{ij} = \beta_{0} + b_{0i} + \beta_{1M} \cdot t_{ij} + \beta_{2M} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot (t_{ij} - 15)_+ + \beta_{4M} \cdot I_i \cdot (t_{ij} - 15)_+ + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ Y_{ij} = \beta_{0} + b_{0i} + \beta_{1D}\cdot t_{ij} + \beta_{2D} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot (t_{ij} - 15)_+ + \beta_{4D} \cdot I_i \cdot (t_{ij} - 15)_+ + \epsilon_{ij} \ \ \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
 $$
 
-
+### Prueba de hipótesis de interés
 
 - El efecto del indice de masa corporal sobre ls profundidad de la hipnosis es el mismo para ambos tratamientos durante todo el estudio
-
 
 $$
 H_0) \begin{matrix} \beta_{2M} = \beta_{2D} \\ \beta_{4M} = \beta_{4D} \end{matrix} \Rightarrow H_0) \begin{matrix} \beta_{2M} - \beta_{2D} = 0 \\ \beta_{4M} - \beta_{4D} = 0 \end{matrix}
 $$
 
 
-```{r}
-spline_5_1 <- update(spline_5, method = "ML") # Modelo saturado
+```{r modelo para hacer la prueba de hipotesis}
+# Modelo saturado reajustado con maxima verosimilitud
+spline_5_1 <- update(spline_5, method = "ML")
 
+# Modelo con el mismo cambio en el IMC para cada grupo
 spline_5_2 <- update(spline_5_1, fixed = bis ~ 1 + minuto:grupo + minuto_15:grupo + minuto:ind_mc + minuto_15:ind_mc)
 
+# Prueba de hipótesis
 anova(spline_5_1, spline_5_2)
 
+# Prueba de hipótesis a través del test de Wald
 Lt = matrix(c(0,0,0,0,0,1,-1,0,0,
              0,0,0,0,0,0,0,1,-1), byrow = T, nrow = 2)
 
@@ -475,48 +487,50 @@ anova(spline_5_1, L = Lt)
 # No RH0, implica mismo cambio en el IMC
 ```
 
-El efecto del indice de masa corporal sobre ls profundidad de la hipnosis es el mismo para ambos tratamientos durante todo el estudio
+El efecto del índice de masa corporal sobre la profundidad de la hipnosis es el mismo para ambos tratamientos durante todo el estudio
 
 $$
 \left \{ \begin{matrix} Y_{ij} = \beta_{0} + b_{0i} + \beta_{1M} \cdot t_{ij} + \beta_{2} \cdot I_i \cdot t_{ij} + \beta_{3M} \cdot (t_{ij} - 15)_+ + \beta_{4} \cdot I_i \cdot (t_{ij} - 15)_+ + \epsilon_{ij}  \ \ \ \ \ \ \ \text{Droga proporcionada: MDZ} \\ Y_{ij} = \beta_{0} + b_{0i} + \beta_{1D}\cdot t_{ij} + \beta_{2} \cdot I_i \cdot t_{ij} + \beta_{3D} \cdot (t_{ij} - 15)_+ + \beta_{4} \cdot I_i \cdot (t_{ij} - 15)_+ + \epsilon_{ij} \ \ \ \ \ \ \ \ \ \text{Droga proporcionada: DEX} \end{matrix} \right.
 $$
 
-- El efecto de las drogas en el cambio sobre ls profundidad de la hipnosis es el mismo durante todo el estudio
+- El efecto de las drogas en el cambio sobre la profundidad de la hipnosis es el mismo durante todo el estudio
 
 $$
 H_0) \begin{matrix} \beta_{1M} = \beta_{1D} \\ \beta_{3M} = \beta_{3D} \end{matrix} \Rightarrow H_0) \begin{matrix} \beta_{1M} - \beta_{1D} = 0 \\ \beta_{3M} - \beta_{3D} = 0 \end{matrix}
 $$
 
 
-```{r}
+```{r prueba de hipótesis 2}
+# Modelo considerando la misma tasa de cambio para cada grupo
 spline_5_3 <- update(spline_5_2, fixed = bis ~ 1 + minuto + minuto_15 + minuto:ind_mc + minuto_15:ind_mc)
 
+# Prueba de hipótesis
 anova(spline_5_2, spline_5_3)
 
+# Prueba de hipótesis a través del test de Wald
 Lt = matrix(c(0, 1, -1, 0, 0, 0, 0,
              0, 0, 0, 1, -1, 0, 0), nrow = 2, byrow = T)
 
 anova(spline_5_2, L = Lt)
 ```
 
-Rechazamos, por lo tanto El efecto de las drogas en el cambio sobre ls profundidad de la hipnosis no es el mismo durante todo el estudio
+Rechazamos $H_0$, por lo tanto el efecto de las drogas en el cambio sobre la profundidad de la hipnosis no es el mismo durante todo el estudio
 
-- El efecto de las drogas en el cambio sobre ls profundidad de la hipnosis es el mismo durante al inicio del estudio
+- El efecto de las drogas en el cambio sobre la profundidad de la hipnosis es el mismo al inicio del estudio
 
-```{r}
+```{r prueba de hipótesis 3}
 spline_5_4 <- update(spline_5_2, fixed = bis ~ 1 + minuto + minuto_15:grupo + minuto:ind_mc + minuto_15:ind_mc)
 
 anova(spline_5_2, spline_5_4)
 
 Lt = matrix(c(0,1,-1,0,0,0,0), byrow = T, nrow = 1)
 
-
 anova(spline_5_2, L = Lt)
 ```
 
 No rechazamos por lo tanto si es diferente al principio del estudio
 
-- El efecto de las drogas en el cambio sobre ls profundidad de la hipnosis es el mismo a partir de los 15 minutos del estudio
+- El efecto de las drogas en el cambio sobre la profundidad de la hipnosis es el mismo a partir de los 15 minutos del estudio
 
 ```{r}
 spline_5_5 <- update(spline_5_2, fixed = bis ~ 1 + minuto:grupo + minuto_15 + minuto:ind_mc + minuto_15:ind_mc)
@@ -524,7 +538,6 @@ spline_5_5 <- update(spline_5_2, fixed = bis ~ 1 + minuto:grupo + minuto_15 + mi
 anova(spline_5_2, spline_5_5)
 
 Lt = matrix(c(0,1,-1,1,-1,0,0), byrow = T, nrow = 1)
-
 
 anova(spline_5_2, L = Lt)
 ```
@@ -539,7 +552,6 @@ spline_5_6 <- update(spline_5_2, fixed = bis ~ 1 + minuto:grupo + minuto_15:grup
 anova(spline_5_2, spline_5_6)
 
 Lt = matrix(c(0,1,-1,1,-1,0,0), byrow = T, nrow = 1)
-
 
 anova(spline_5_2, L = Lt)
 ```
@@ -556,6 +568,7 @@ $$
 ## Análisis de residuos
 
 ```{r}
+# Dataframe que tiene todos los residuos
 resid.2 <- data.frame(datos_largo, 
                       pred = fitted(spline_5_2), 
                       resid_m = resid(spline_5_2, type = 'p', level = 0),
@@ -611,8 +624,11 @@ ggplot(data = resid.2, aes(x = minuto, y = resid_m)) +
   theme(plot.title = element_text(size = 15))
 
 # Presencia de outliers
+
 # Outliers
 resid.2 = mutate(resid.2, obs = 1:nrow(datos_largo))
+
+# Residuos marginales estandarizados vs observaciones
 ggplot(data = resid.2) +
   geom_point(aes(x = obs, y = resid_m), color = 'steelblue') +
   geom_hline(yintercept = 0) +
@@ -624,7 +640,7 @@ ggplot(data = resid.2) +
   labs(title = "Residuos marginales estandarizados vs tiempo") +
   theme(plot.title = element_text(size = 15))
 
-
+# Residuos condicionales estandarizados vs tiempo
 ggplot(data = resid.2) +
   geom_point(aes(x = obs, y = resid_ce), color = 'steelblue') +
   geom_hline(yintercept = 0) +
@@ -640,6 +656,7 @@ D = getVarCov(spline_5_2, type="random.effects")
 Mi = mahalanobis(ranef(spline_5_2), 0, D)
 Mi = data.frame(id = datos_largo$id, Mi)
 
+# Distancia de Mahalanobis vs id
 ggplot(data = Mi) +
   geom_point(aes(x = id, y = Mi), color = 'steelblue') +
   geom_hline(yintercept = 0) +
@@ -649,11 +666,9 @@ ggplot(data = Mi) +
   labs(title = "Distancia de Mahalanobis vs id") +
   theme(plot.title = element_text(size = 15))
 
+# Para identificar cuales son esas observaciones
 Mi |> filter(Mi > 0.6)
 ```
-
-
-# Conclusion
-
+## Parámetros estimados del modelo final
 
 $$\begin{matrix} \hat\beta_0 & 97.7796 \\ \hat\beta_{1M} & -0.7917\\ \hat\beta_{1D} & -0.3332  \\ \hat\beta_{2}& -0.0115 \\ \hat\beta_{3M} & 0.7259 \\ \hat\beta_{3D} & 0.1640\\\hat\beta_{4} & 0.0186 \end{matrix}$$
